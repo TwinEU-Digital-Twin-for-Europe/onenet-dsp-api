@@ -1,0 +1,27 @@
+{
+    "_class": "it.eng.catalog.model.DataService",
+    "keyword": [
+        "REST",
+        "SFTP",
+        "transfer"
+    ],
+    "theme": [
+        "dark theme",
+        "light theme"
+    ],
+    "conformsTo": "conformsToSomething",
+    "creator": "Engineering Ingegneria Informatica S.p.A.",
+    "description": [
+        {
+            "value": "DSP TRUE Connector Service",
+            "language": "en"
+        }
+    ],
+    "identifier": "DSP TRUE Connector Unique Identifier",
+    "issued": "2024-04-23T16:26:00.000Z",
+    "modified": "2024-04-23T16:26:00.000Z",
+    "title": "DSP TRUE Connector",
+    "endpointDescription": "dspace:connector",
+    "endpointURL": "<endpointURL>",
+    "createdBy": "admin@mail.com"
+}

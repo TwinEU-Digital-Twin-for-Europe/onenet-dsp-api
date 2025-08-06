@@ -1,0 +1,44 @@
+{
+  "artifact": null,
+  "conformsTo": null,
+  "createdBy": null,
+  "creator": "<creator>",
+  "description": [
+    {
+      "value": "<value>",
+      "language": "en"
+    }
+  ],
+  "distribution": [],
+  "hasPolicy": [
+    {
+      "assignee": null,
+      "assigner": null,
+      "permission": [
+        {
+          "assigner": null,
+          "assignee": null,
+          "target": null,
+          "action": "USE",
+          "constraint": [
+            {
+              "leftOperand": "DATE_TIME",
+              "operator": "GT",
+              "rightOperand": "2025-01-01T00:00Z"
+            }
+          ]
+        }
+      ],
+      "target": null
+    }
+  ],
+  "identifier": null,
+  "issued": null,
+  "keyword": [],
+  "lastModifiedBy": null,
+  "modified": null,
+  "theme": [],
+  "title": "<title>",
+  "type": "dcat:Dataset",
+  "version": null
+}

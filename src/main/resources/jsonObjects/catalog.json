@@ -1,0 +1,30 @@
+{
+    "_class": "it.eng.catalog.model.Catalog",
+    "keyword": [
+        "Default",
+        "DSP TRUE Connector",
+        "Connector"
+    ],
+    "theme": [
+        "dark theme",
+        "light theme"
+    ],
+    "conformsTo": "conformsToSomething",
+    "creator": "Engineering Ingegneria Informatica S.p.A.",
+    "description": [
+        {
+            "value": "DSP TRUE Connector Catalog",
+            "language": "en"
+        }
+    ],
+    "identifier": "Unique identifier for DSP TRUE Connector Catalog",
+    "issued": "2024-04-23T16:26:00.000Z",
+    "modified": "2024-04-23T16:26:00.000Z",
+    "title": "DSP TRUE Connector Catalog",
+    "distribution": [],
+    "dataset": [],
+    "service": [],
+    "participantId": "urn:example:DataProvider",
+    "homepage": "https://www.homepage.com/test",
+    "createdBy": "admin@mail.com"
+}
