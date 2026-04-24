@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -25,6 +26,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import it.eng.onenet.dsp.api.dto.connector.Catalog;
 import it.eng.onenet.dsp.api.dto.connector.ConnectorResponse;
@@ -32,6 +34,8 @@ import it.eng.onenet.dsp.api.dto.connector.DataService;
 import it.eng.onenet.dsp.api.dto.connector.Dataset;
 import it.eng.onenet.dsp.api.dto.connector.Distribution;
 import it.eng.onenet.dsp.api.dto.connector.Negotiation;
+import it.eng.onenet.dsp.api.dto.connector.OuterResponse;
+import it.eng.onenet.dsp.api.dto.connector.PagedResponse;
 import it.eng.onenet.dsp.api.dto.connector.TransferProcess;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,6 +50,10 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class ConnectorApiService {
+
+  @Autowired
+  private ObjectMapper objectMapper;
+
   private RestTemplate restTemplate;
   private ResourceLoader resourceLoader;
 
@@ -104,8 +112,7 @@ public class ConnectorApiService {
   public void addDistribution(String dataServiceId) throws IOException {
     log.info("Adding Distribution...");
     String distributionPayLoad = getJsonPayloadFromResource("jsonObjects/distribution.json");
-    ObjectMapper mapper = new ObjectMapper();
-    JsonNode root = mapper.readTree(distributionPayLoad);
+    JsonNode root = objectMapper.readTree(distributionPayLoad);
 
     JsonNode accessServiceNode = root.get("accessService");
 
@@ -113,7 +120,7 @@ public class ConnectorApiService {
       ObjectNode firstAccessService = (ObjectNode) accessServiceNode.get(0);
       firstAccessService.put("@id", dataServiceId);
     }
-    HttpEntity<String> request = createHttpEntityRequest(mapper.writeValueAsString(root));
+    HttpEntity<String> request = createHttpEntityRequest(objectMapper.writeValueAsString(root));
     ResponseEntity<ConnectorResponse<Distribution>> response = restTemplate.exchange(
         String.format("%sdistributions", connectorEndpointApiUrl), HttpMethod.POST, request,
         new ParameterizedTypeReference<ConnectorResponse<Distribution>>() {
@@ -128,11 +135,10 @@ public class ConnectorApiService {
     // replace endpointURL
     log.info(String.format("Using endpointURL: %s", connectorEndpointUrl));
 
-    ObjectMapper mapper = new ObjectMapper();
-    JsonNode root = mapper.readTree(dataServicePayLoad);
+    JsonNode root = objectMapper.readTree(dataServicePayLoad);
     ((ObjectNode) root).put("endpointURL", connectorEndpointUrl);
 
-    HttpEntity<String> request = createHttpEntityRequest(mapper.writeValueAsString(root));
+    HttpEntity<String> request = createHttpEntityRequest(objectMapper.writeValueAsString(root));
 
     ResponseEntity<ConnectorResponse<DataService>> response = restTemplate.exchange(
         String.format("%sdataservices", connectorEndpointApiUrl), HttpMethod.POST, request,
@@ -167,9 +173,8 @@ public class ConnectorApiService {
       if (distribution != null) {
         // Load the default json dataset
         String datasetPayLoad = getJsonPayloadFromResource("jsonObjects/dataset.json");
-        ObjectMapper mapper = new ObjectMapper();
         // Replace dataset values at the root level
-        JsonNode root = mapper.readTree(datasetPayLoad);
+        JsonNode root = objectMapper.readTree(datasetPayLoad);
         ObjectNode rootObject = (ObjectNode) root;
         if (rootObject != null && rootObject.isObject()) {
           rootObject.put("creator", creator);
@@ -185,7 +190,7 @@ public class ConnectorApiService {
           // Replace dataset nested values - distribution
           ArrayNode distributionNodeArray = (ArrayNode) rootObject.get("distribution");
           if (distributionNodeArray != null && distributionNodeArray.isArray()) {
-            JsonNode distributionNode = mapper.valueToTree(distribution);
+            JsonNode distributionNode = objectMapper.valueToTree(distribution);
             distributionNodeArray.add(distributionNode);
           }
           // Replace dataset nested values - keywords
@@ -198,7 +203,7 @@ public class ConnectorApiService {
         }
 
         HttpEntity<MultiValueMap<String, Object>> request = createMultipartHttpEntityRequest(
-            mapper.writeValueAsString(root), file, filename);
+            objectMapper.writeValueAsString(root), file, filename);
 
         try {
           ResponseEntity<ConnectorResponse<Dataset>> response = restTemplate.exchange(
@@ -243,7 +248,6 @@ public class ConnectorApiService {
 
     Negotiation negotiation = null;
 
-    ObjectMapper objectMapper = new ObjectMapper();
     Map<String, Object> policyObj = objectMapper.readValue(policy, new TypeReference<Map<String, Object>>() {
     });
 
@@ -270,6 +274,7 @@ public class ConnectorApiService {
 
       negotiation = response.getBody().getData();
     } catch (RestClientException e) {
+      log.error(e.getMessage(), e);
       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Contract Negotiation not started.");
     }
 
@@ -301,20 +306,19 @@ public class ConnectorApiService {
     HttpEntity<String> request = createHttpEntityRequest(null);
 
     try {
-      ResponseEntity<ConnectorResponse<List<Negotiation>>> response = restTemplate.exchange(
-          String.format("%snegotiations?role=%s&consumerPid=%s&providerPid=%s", connectorUrl, role, consumerPid,
-              providerPid),
-          HttpMethod.GET, request, new ParameterizedTypeReference<ConnectorResponse<List<Negotiation>>>() {
+      ResponseEntity<OuterResponse<PagedResponse<Negotiation>>> response = restTemplate.exchange(
+          String.format("%snegotiations?role=%s&consumerPid=%s&providerPid=%s", connectorUrl, role, consumerPid, providerPid),
+          HttpMethod.GET, request, new ParameterizedTypeReference<OuterResponse<PagedResponse<Negotiation>>>() {
           });
 
-      negotiations = response.getBody().getData();
+      negotiations = response.getBody().getResponse().getData().getContent();
     } catch (RestClientException e) {
+      log.error("Error while retrieving Contract Negotiations: {}", e.getMessage());
       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No Contract Negotiations found.");
     }
 
     if (negotiations != null && !negotiations.isEmpty())
-      log.info(String.format("Contract Negotiations found for consumerPid [%s] and providerPid [%s].", consumerPid,
-          providerPid));
+      log.info(String.format("Contract Negotiations found for consumerPid [%s] and providerPid [%s].", consumerPid, providerPid));
     else
       log.info("No Contract Negotiations found.");
 
@@ -355,35 +359,81 @@ public class ConnectorApiService {
     }
   }
 
-  public List<TransferProcess> findTransferProcesses(String connectorUrl, String state, String role) {
+  public TransferProcess findTransferProcess(String transferProcessId) {
+
+    TransferProcess transferProcess = null;
+
+    log.info("Finding Transfer Process with id [{}] ...", transferProcessId);
+
+    HttpEntity<String> request = createHttpEntityRequest(null);
+
+    ResponseEntity<ConnectorResponse<TransferProcess>> response = restTemplate.exchange(
+        String.format("%stransfers/%s", connectorEndpointApiUrl, transferProcessId), HttpMethod.GET, request,
+        new ParameterizedTypeReference<ConnectorResponse<TransferProcess>>() {
+        });
+    transferProcess = response.getBody().getData();
+
+    if (transferProcess != null)
+      log.info("Transfer Process found.");
+    else
+      log.info("No Transfer Process found.");
+
+    return transferProcess;
+  }
+
+  public List<TransferProcess> findTransferProcesses(String connectorUrl, String state, String role, String datasetId,
+      String providerPid, String consumerPid) {
 
     List<TransferProcess> transferProcesses = null;
     String sender = "";
 
-    if (role.equals("consumer")) {
+    if (connectorUrl == null) {
       sender = "C";
       connectorUrl = connectorEndpointApiUrl;
     } else {
-      if (role.equals("provider")) {
-        sender = "P";
-        connectorUrl += connectorApi;
-      }
+      sender = "P";
+      connectorUrl += connectorApi;
     }
-
     log.info("[{}] Finding {} Transfer Processes...", sender, state);
 
     HttpEntity<String> request = createHttpEntityRequest(null);
 
-    ResponseEntity<ConnectorResponse<List<TransferProcess>>> response;
     try {
-      response = restTemplate.exchange(String.format("%stransfers?state=%s&role=%s", connectorUrl, state, role),
-          HttpMethod.GET, request, new ParameterizedTypeReference<ConnectorResponse<List<TransferProcess>>>() {
+      UriComponentsBuilder builder = UriComponentsBuilder
+          .fromHttpUrl(connectorUrl + "transfers");
+
+      if (state != null && !state.isEmpty()) {
+        builder.queryParam("state", state);
+      }
+      if (role != null && !role.isEmpty()) {
+        builder.queryParam("role", role);
+      }
+      if (datasetId != null && !datasetId.isEmpty()) {
+        builder.queryParam("datasetId", datasetId);
+      }
+      if (providerPid != null && !providerPid.isEmpty()) {
+        builder.queryParam("providerPid", providerPid);
+      }
+      if (consumerPid != null && !consumerPid.isEmpty()) {
+        builder.queryParam("consumerPid", consumerPid);
+      }
+
+      String url = builder.toUriString();
+
+      ResponseEntity<OuterResponse<PagedResponse<TransferProcess>>> response = restTemplate.exchange(url, HttpMethod.GET, request,
+          new ParameterizedTypeReference<OuterResponse<PagedResponse<TransferProcess>>>() {
           });
 
-      transferProcesses = response.getBody().getData();
+      transferProcesses = response.getBody().getResponse().getData().getContent();
     } catch (RestClientException e) {
       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No Transfer Processes found.");
     }
+
+    if (transferProcesses != null && !transferProcesses.isEmpty())
+      log.info(String.format("Transfer Processes found for datasetId [%s], consumerPid [%s] and providerPid [%s].",
+          datasetId, consumerPid, providerPid));
+    else
+      log.info("No Transfer Process found.");
 
     return transferProcesses;
   }
@@ -395,7 +445,6 @@ public class ConnectorApiService {
 
     TransferProcess transfer = null;
 
-    ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode payload = objectMapper.createObjectNode();
     payload.put("transferProcessId", transferProcessId);
     payload.put("format", format);
@@ -412,6 +461,7 @@ public class ConnectorApiService {
 
       transfer = response.getBody().getData();
     } catch (RestClientException e) {
+      log.error("Error while requesting Data Transfer: {}", e.getMessage());
       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Data Transfer request failed.");
     }
 
@@ -465,6 +515,7 @@ public class ConnectorApiService {
 
         data = response.getBody();
       } catch (RestClientException e) {
+        log.error("Error while retrieving transferred file: {}", e.getMessage());
         throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
             "Data Transfer failed - File cannot be retrieved.");
       }
@@ -482,6 +533,7 @@ public class ConnectorApiService {
 
         log.info(response.getBody().getMessage());
       } catch (RestClientException e) {
+        log.error("Error while retrieving transferred file: {}", e.getMessage());
         throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
             "Data Transfer failed - File cannot be retrieved.");
       }

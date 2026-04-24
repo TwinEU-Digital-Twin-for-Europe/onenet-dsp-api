@@ -47,7 +47,7 @@ public class ConsumeDataController {
 
     @Operation(security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("{fileid}")
-    public FileResponse getFile(@RequestHeader Map<String, String> headers, @PathVariable("fileid") String id) throws IOException {
+    public FileResponse getFile(@RequestHeader Map<String, String> headers, @PathVariable("fileid") String id) throws IOException, InterruptedException {
       return consumeDataService.getFile(headers, id);
     }
 

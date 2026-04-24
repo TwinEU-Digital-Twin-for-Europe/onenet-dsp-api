@@ -16,7 +16,7 @@ public class HealthController {
   @GetMapping
   public String getObject() {
     String version = "unknown";
-    log.info("Healt Check - Attempting to read project version from pom.xml");
+    log.info("Health Check - Attempting to read project version from pom.xml");
     try {
       MavenXpp3Reader reader = new MavenXpp3Reader();
       Model model = reader.read(new FileReader("pom.xml"));

@@ -17,12 +17,20 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class InitDspConnectorService {
-    private static final int MAX_ATTEMPTS = 30;
-    private static final long WAIT_MS = 5000;
 
-    @Value("${connector.endpoint.api.url}")
-    private String connectorEndpointApiUrl;
-    private ConnectorApiService connectorApiService;
+  @Value("${connector.init.max-attempts:30}")
+  private int maxAttempts;
+
+  @Value("${connector.init.wait-ms:5000}")
+  private long waitMs;
+
+  @Value("${connector.init.timeout-ms:500}")
+  private int timeoutMs;
+
+  @Value("${connector.endpoint.api.url}")
+  private String connectorEndpointApiUrl;
+
+  private ConnectorApiService connectorApiService;
 
     public InitDspConnectorService(ConnectorApiService connectorApiService) {
         this.connectorApiService = connectorApiService;
@@ -45,8 +53,8 @@ public class InitDspConnectorService {
 
     public void init() throws IOException, InterruptedException {
         int attempt = 0;
-        while (attempt < MAX_ATTEMPTS) {
-            if (isUrlReachable(connectorEndpointApiUrl, 500)) {
+        while (attempt < maxAttempts) {
+            if (isUrlReachable(connectorEndpointApiUrl, timeoutMs)) {
                 log.info(String.format("Connector Up on %s", connectorEndpointApiUrl));
                 try {
                     this.initConnector();
@@ -61,8 +69,8 @@ public class InitDspConnectorService {
             }
             attempt++;
             log.info(String.format("Waiting Connector on [%s] (%d/%d)%n", connectorEndpointApiUrl, attempt,
-                    MAX_ATTEMPTS));
-            Thread.sleep(WAIT_MS);
+                maxAttempts));
+            Thread.sleep(waitMs);
         }
         throw new IllegalStateException("Connector not ready!!!");
 

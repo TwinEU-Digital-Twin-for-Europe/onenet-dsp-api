@@ -39,15 +39,14 @@ public class EntityService {
           ? String.valueOf(parameters.get("data_send").get("push_uri"))
           : null;
       /* Check and Send data to push service */
-      log.debug("Push_uri from Offering :" + parameters.get("data_send").get("push_uri"));
+      log.debug("Push_uri from Offering : {}", pushUri);
       if (pushUri != null && !pushUri.isEmpty()) {
         // Call push uri
-        log.info("*** Send data to push uri rest service...");
-        parameters.get("data_send").put("push_uri", pushUri);
+        log.info("Sending data to push uri rest service...");
         pushRequestResult = this.pushRestTemplate.post(parameters, headers);
       } else {
         // No push uri defined
-        log.info("Push_uri parameter is empty, null, or nonexistent");
+        log.info("Push_uri parameter is empty or null");
       }
     }
     return pushRequestResult;
@@ -74,6 +73,10 @@ public class EntityService {
 
     parameters.get("data_send").put("type", response.get("type"));
     parameters.get("data_send").put("push_uri", response.get("push_uri"));
+    parameters.get("data_send").put("push_security_type", response.get("push_security_type"));
+    parameters.get("data_send").put("push_security_field1", response.get("push_security_field1"));
+    parameters.get("data_send").put("push_security_field2", response.get("push_security_field2"));
+    parameters.get("data_send").put("push_security_addingto", response.get("push_security_addingto"));
 
     parameters.get("keywords").put("business_object", response.get("business_object_code") + " - " + response.get("business_object_name"));
     parameters.get("keywords").put("service", response.get("service_code") + " - " + response.get("service_name"));

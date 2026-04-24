@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,10 +17,12 @@ import it.eng.onenet.dsp.api.dto.connector.Dataset;
 import it.eng.onenet.dsp.api.dto.connector.Distribution;
 import it.eng.onenet.dsp.api.dto.connector.Offer;
 import it.eng.onenet.dsp.api.dto.list_results.ListResultsDataDTO;
+import it.eng.onenet.dsp.api.dto.notification.DataProvidedEventDTO;
 import it.eng.onenet.dsp.api.dto.provide_data.ProvideDataDTO;
 import it.eng.onenet.dsp.api.rest_template.provide_data.ProvideDataRestTemplate;
 import it.eng.onenet.dsp.api.service.connector.ConnectorApiService;
 import it.eng.onenet.dsp.api.service.local_functionality.EntityService;
+import it.eng.onenet.dsp.api.service.notification.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,14 +31,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Slf4j
 public class ProvideDataService {
 
+  @Autowired
+  private ObjectMapper objectMapper;
+
   private final ProvideDataRestTemplate provideDataRestTemplate;
   private final EntityService entityService;
   private final ConnectorApiService connectorApiService;
+  private final NotificationService notificationService;
 
-  public ProvideDataService(ProvideDataRestTemplate provideDataRestTemplate, EntityService entityService, ConnectorApiService connectorApiService) {
+  public ProvideDataService(ProvideDataRestTemplate provideDataRestTemplate, EntityService entityService,
+      ConnectorApiService connectorApiService, NotificationService notificationService) {
     this.provideDataRestTemplate = provideDataRestTemplate;
     this.entityService = entityService;
     this.connectorApiService = connectorApiService;
+    this.notificationService = notificationService;
   }
 
   public List<Map<String, Object>> getList(Map<String, String> headers) {
@@ -67,7 +76,10 @@ public class ProvideDataService {
     Map<String, Object> keywords = new HashMap<>();
     parameters.put("keywords", keywords);
 
-    /* Check on Central Registry if user has rights on this data offering and get push_uri for PUSH service type */
+    /*
+     * Check on Central Registry if user has rights on this data offering and get
+     * push_uri for PUSH service type
+     */
     entityService.checkAndSetDataOfferingInfo(parameters, headers);
 
     // Collect keywords
@@ -79,7 +91,8 @@ public class ProvideDataService {
     /* Save File to local True Connector */
     String prefix = "base64,";
     int index = dto.getFile().indexOf(prefix);
-    if (index >= 0) file = dto.getFile().substring(index + prefix.length());
+    if (index >= 0)
+      file = dto.getFile().substring(index + prefix.length());
     if (file != null)
       dataset = this.connectorApiService.addDataset(file, dto.getFilename(), dto.getDescription(), keywordsList);
 
@@ -100,7 +113,6 @@ public class ProvideDataService {
       if (dataset.getHasPolicy() != null && !dataset.getHasPolicy().isEmpty()) {
         Offer firstPolicy = dataset.getHasPolicy().get(0);
         if (firstPolicy != null) {
-          ObjectMapper objectMapper = new ObjectMapper();
           String firstPolicyJson = objectMapper.writeValueAsString(firstPolicy);
           parameters.get("data_send").put("policy", firstPolicyJson);
         }
@@ -108,6 +120,14 @@ public class ProvideDataService {
 
       /* Save Data Offering to Central Registry */
       id = this.provideDataRestTemplate.post(parameters, headers);
+
+      // **** send notification ****
+      DataProvidedEventDTO event = new DataProvidedEventDTO(id,
+          dto.getTitle(),
+          dto.getData_offering_id(),
+          parameters.get("data_send").get("type").toString());
+      this.notificationService.DataProvided(headers, event);
+      // **** send notification ****
 
       // Add entity id and file to data_send parameters
       parameters.get("data_send").put("id", id);
@@ -132,7 +152,8 @@ public class ProvideDataService {
       if (data != null) {
         Map<String, Object> dataSendObj = (Map<String, Object>) data.get("data_send_obj");
         if (dataSendObj == null || dataSendObj.get("id") == null || !id.equals(dataSendObj.get("id"))) {
-          throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Data with id [" + id + "] not found or invalid.");
+          throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+              "Data with id [" + id + "] not found or invalid.");
         } else {
           log.info("Data with id [{}] retrieved from Central Registry.", id);
           datasetId = (String) dataSendObj.get("dataset_id");
