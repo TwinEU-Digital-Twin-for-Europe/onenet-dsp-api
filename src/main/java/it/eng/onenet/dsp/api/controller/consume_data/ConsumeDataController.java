@@ -41,14 +41,23 @@ public class ConsumeDataController {
 
     @Operation(security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("metadata/{fileid}")
-    public Map<String, Object> getEntity(@RequestHeader Map<String, String> headers, @PathVariable("fileid") String id) {
-      return consumeDataService.getEntity(headers, id);
+    public Map<String, Object> getEntity(@RequestHeader Map<String, String> headers,
+            @PathVariable("fileid") String id) {
+        return consumeDataService.getEntity(headers, id);
     }
 
     @Operation(security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("{fileid}")
-    public FileResponse getFile(@RequestHeader Map<String, String> headers, @PathVariable("fileid") String id) throws IOException, InterruptedException {
-      return consumeDataService.getFile(headers, id);
+    public FileResponse getFile(@RequestHeader Map<String, String> headers, @PathVariable("fileid") String id)
+            throws IOException, InterruptedException {
+        return consumeDataService.getFile(headers, id);
+    }
+
+    @Operation(security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("json/{fileid}")
+    public Object getJSONFile(@RequestHeader Map<String, String> headers, @PathVariable("fileid") String id)
+            throws IOException, InterruptedException {
+        return consumeDataService.getJSONFIle(headers, id);
     }
 
 }

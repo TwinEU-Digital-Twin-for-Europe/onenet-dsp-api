@@ -1,2 +1,2 @@
-docker build -t plinardi/onenet-dsp-api:1.1.6 .
-docker push plinardi/onenet-dsp-api:1.1.6
+docker build -t mlafranca/onenet-dsp-api:1.1.9-1 .
+docker push mlafranca/onenet-dsp-api:1.1.9-1
